@@ -49,10 +49,22 @@
 </template>
 
 <script>
+import jwt from 'jsonwebtoken'
 export default {
+
+  created() { // 组件创建时调用
+    const userInfo = this.getUserInfo(); //新增一个获取用户信息的方法
+    if(userInfo != null) {
+      this.id = userInfo.id;
+      this.name = userInfo.name;
+    }else {
+      this.id = '';
+      this.name = '';
+    }
+  },
   data () {
     return {
-      name: 'Molunerfinn',
+      name: '',
       todos: '',
       activeName: 'first',
       list:[],
@@ -74,16 +86,30 @@ export default {
       }
     }
   },
-
   methods: {
     addTodos() {
       if(this.todos == '')
         return
       let obj = {
         status: false,
-        content: this.todos
+        content: this.todos,
+        id: this.id
       }
-      this.list.push(obj);
+     this.$http.post('/api/todolist', obj) // 新增创建请求
+      .then((res) => {
+        if(res.status == 200){ // 当返回的状态为200成功时
+          this.$message({
+            type: 'success',
+            message: '创建成功！'
+          })
+          this.getTodolist(); // 获得最新的todolist
+        }else{
+          this.$message.error('创建失败！') // 当返回不是200说明处理出问题
+        }
+      }, (err) => {
+        this.$message.error('创建失败！') // 当没有返回值说明服务端错误或者请求没发送出去
+        console.log(err)
+      })
       this.todos = '';
     },
     finished(index) {
@@ -106,6 +132,28 @@ export default {
         type: 'info',
         message: '任务还原'
       })
+    },
+    getUserInfo() {
+      const token = sessionStorage.getItem('token');
+      if(token != null && token != 'null'){
+        let decode = jwt.decode(token);
+        return decode
+      }else {
+        return null
+      }
+    },
+    getTodolist(){
+      this.$http.get('/api/todolist/' + this.id) // 向后端发送获取todolist的请求
+        .then((res) => {
+          if(res.status == 200){
+            this.list = res.data // 将获取的信息塞入实例里的list
+          }else{
+            this.$message.error('获取列表失败！')
+          }
+        }, (err) => {
+          this.$message.error('获取列表失败！')
+          console.log(err)
+        })
     }
   }
 };
